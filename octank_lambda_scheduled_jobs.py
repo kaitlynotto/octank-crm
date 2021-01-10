@@ -13,23 +13,23 @@ def lambda_handler(event, context):
     print("time is: " + nowTime.minute)
 
     # 2. scan and return Items from dynamodb based on nowTime.minute and runJob
-    dbItems = scanJobs(nowTime)
+    dbItems = scanJobs(nowTime) 
 
-    for item in dbItems:
+    for item in dbItems: # looping through functions defined below
         downloadS3File(item.s3key)
         processFile(item.s3key, item.customerId, item.presharedKey)
 
 
-def scanJobs(currentTime):
+def scanJobs(nowTime):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table('customer')
 
-    runJob = 1 if currentTime.minute < 30 else 0
+    runJob = 1 if nowTime.minute < 30 else 2
 
     resp = table.scan(FilterExpression=Attr("runJob").eq(str(runJob)))
 # should this also include: (ProjectionExpression="customerId, presharedKey, s3key")
 
-# is this the right way to return values to use in the next step?
+# return all Items from the scan to be used in other parts of the function
     print(resp['Items'])
     return resp['Items']
 
@@ -61,6 +61,8 @@ def processFile(s3Key, customerId, apiKey):
             print(response.text)
 
 # 5. loop through next customer
+# 6. 
+
 
 # NON-CODE STUFF
 # url = 'https://www.w3schools.com/python/demopage.php'
