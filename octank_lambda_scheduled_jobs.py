@@ -1,121 +1,101 @@
+# why is this needed? https://highlandsolutions.com/blog/hands-on-examples-for-working-with-dynamodb-boto3-and-python
+from boto3.dynamodb.conditions import Key
 import json
 import boto3
 import requests
 import datetime
 
+
 def lambda_handler(event, context):
 
-# 1. get the current time.minute
-nowTime = datetime.datetime.now()
-print(nowTime.minute)
+    # 1. get the current time.minute
+    nowTime = datetime.datetime.now()
+    print("time is: " + nowTime.minute)
 
-# 2. scan and return Items from dynamodb based on nowTime.minute and runJob
-from boto3.dynamodb.conditions import Key #why is this needed? https://highlandsolutions.com/blog/hands-on-examples-for-working-with-dynamodb-boto3-and-python
+    # 2. scan and return Items from dynamodb based on nowTime.minute and runJob
+    dbItems = scanJobs(nowTime)
 
-def scanJobs():
+    for item in dbItems:
+        downloadS3File(item.s3key)
+        processFile(item.s3key, item.customerId, item.presharedKey)
+
+
+def scanJobs(currentTime):
     dynamodb = boto3.resource('dynamodb')
-    
     table = dynamodb.Table('customer')
-    
-    resp = table.scan(FilterExpression=Attr("runJob").eq(
-    	if nowTime.minute >= 0 and nowTime.minute < 30:
-    		runJob = 1
-		else:
-			runJob = 2))
-    
-    # should this also include: (ProjectionExpression="customerId, presharedKey, s3key")
-    
-    print(resp['Items']) #is this the right way to return values to use in the next step?
+
+    runJob = 1 if currentTime.minute < 30 else 0
+
+    resp = table.scan(FilterExpression=Attr("runJob").eq(str(runJob)))
+# should this also include: (ProjectionExpression="customerId, presharedKey, s3key")
+
+# is this the right way to return values to use in the next step?
+    print(resp['Items'])
+    return resp['Items']
 
 # 3. download custom_code.py to /tmp/ directory in lambda
 
-s3 = boto3.resource("s3")
-srcFileName="custom_code.py"
-destFileName="s3_custom_code.py"
-bucketName="octank-custom-code"
-k = Key(bucket,srcFileName)
-k.get_contents_to_filename(destFileName)
+
+def downloadS3File(s3Key):
+    s3 = boto3.resource("s3")
+    srcFileName = s3Key
+    destFileName = "/tmp/" + s3Key
+    bucketName = "octank-custom-code"
+    k = Key(bucketName, srcFileName)
+    k.get_contents_to_filename(destFileName)
+
 
 # 4. read file line-by-line and only continue with loop once 200 success response is returned
+def processFile(s3Key, customerId, apiKey):
+    file1 = open('/tmp/' + s3Key, 'r')
+    Lines = file1.readlines()
+    for line in Lines:
+        # how do i pass the customerId + api Key with the request?  -- look at the API gateway docs to find the header names and then add headers to the request like this https://stackoverflow.com/questions/8685790/adding-headers-to-requests-module
+        response = request.get(endpoint)
+        if response.status_code == 200:
+            data = response.json()
+            return data
+        else:
+            print(response.status_code)
+            # would this stop the loop? i don't think so - yes, fail the job and log the failure somewhere for simplicity in the poc
+            print(response.text)
 
-file1 = open('s3_custom_code.py', 'r')  
-Lines = file1.readlines()
-for line in Lines:
-	response = request.get(endpoint)  #how do i pass the customerId + api Key with the request?
-	if response.status_code = 200:
-		data = response.json()
-		return data
-	else:
-		print(response.status_code)
-		print(response.text)        # would this stop the loop? i don't think so
+# 5. loop through next customer
 
-#5. loop through next customer
+# NON-CODE STUFF
+# url = 'https://www.w3schools.com/python/demopage.php'
+# myobj = {'somekey': 'somevalue'}
 
-
-
-
-
-
-
-
-
-
+# x = requests.post(url, data=myobj)
 
 
+# for item in resp['Items']:
+#     	if item.runJob == checktime.rightnow() if less than 30 min, run all jobs that have 1, if gt > 29 run all jobs that have 2)
+# 			then post
 
 
+# 			make flask_api return something
+# 			take each one of those runs and log it out to show there was success
+# 			just needs an indicator that it succeeded
+
+# Show proof that happening
+# Put logging within the code to demonstrate what is happening
+
+#    By adding load
+#    Response just returned to the lambda function
+#    everything works over http request and http Response
+#    api result will be in response
+
+#    change the last line
 
 
+# # iterate through s3 bucket object
 
-
-
-
-
-url = 'https://www.w3schools.com/python/demopage.php'
-myobj = {'somekey': 'somevalue'}
-
-x = requests.post(url, data = myobj)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-for item in resp['Items']: 
-    	if item.runJob == checktime.rightnow() if less than 30 min, run all jobs that have 1, if gt>29 run all jobs that have 2)
-			then post
-
-
-			make flask_api return something
-			take each one of those runs and log it out to show there was success
-			just needs an indicator that it succeeded
-
-Show proof that happening 
-Put logging within the code to demonstrate what is happening
-
-   By adding load 
-   Response just returned to the lambda function
-   everything works over http request and http Response
-   api result will be in response
-
-   change the last line
-
-
-# iterate through s3 bucket object
-
-s3 = boto3.resource('s3')
-bucket = s3.Bucket('test-bucket')
-# Iterates through all the objects, doing the pagination for you. Each obj
-# is an ObjectSummary, so it doesn't contain the body. You'll need to call
-# get to get the whole body.
-for obj in bucket.objects.all():
-    key = obj.key
-    body = obj.get()['Body'].read()
+# s3= boto3.resource('s3')
+# bucket= s3.Bucket('test-bucket')
+# # Iterates through all the objects, doing the pagination for you. Each obj
+# # is an ObjectSummary, so it doesn't contain the body. You'll need to call
+# # get to get the whole body.
+# for obj in bucket.objects.all():
+#     key= obj.key
+#     body= obj.get()['Body'].read()
