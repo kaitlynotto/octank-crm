@@ -1,9 +1,9 @@
 from boto3.dynamodb.conditions import Key, Attr
 import boto3
+import botocore
 import datetime
 import urllib3
 import json
-import logging
 
 def lambda_handler(event, context):
     
@@ -28,7 +28,20 @@ def scanJobs(currentTime):
     print(resp['Items'])
     return resp['Items']
 
-def downloadS3File(s3Key):
+BUCKET_NAME = 'octank-custom-code' # replace with your bucket name
+KEY = item["s3Key"] # replace with your object key
+
+s3 = boto3.resource('s3')
+
+try:
+    s3.Bucket(BUCKET_NAME).download_file(KEY, f"/tmp/{KEY}")
+except botocore.exceptions.ClientError as e:
+    if e.response['Error']['Code'] == "404":
+        print("The object does not exist.")
+    else:
+        raise
+        
+'''def downloadS3File(s3Key):
     print("Downloading file '" + s3Key + "'")
     try:
         s3 = boto3.resource("s3")
@@ -39,10 +52,9 @@ def downloadS3File(s3Key):
         k.get_contents_to_filename(destFileName)
     
     except Exception as e:
-        print(e)
+        print(e)'''
         
 http = urllib3.PoolManager()
-logging.basicConfig(filename="test_flask_api.log", level=logging.INFO)
 
 def processFile(url, customer_id, apikey): 
     file1 = open('/tmp/' + s3Key, 'r')
@@ -55,6 +67,5 @@ def processFile(url, customer_id, apikey):
             return data
         else:
             print(response.status)
-            logging.info("Job could not be completed")
             break
     
