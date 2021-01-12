@@ -56,15 +56,14 @@ except botocore.exceptions.ClientError as e:
         
 http = urllib3.PoolManager()
 
-def processFile(url, customer_id, apikey): 
+def processFile(endpoint, customer_id, apikey): 
     file1 = open('/tmp/' + s3Key, 'r')
     Lines = file1.readlines()
-    for item in itemIteration:
-        response = http.request('GET', url, headers={'customerId':customer_id, 'apiKey':apikey}) 
+    for line in Lines:
+        response = http.request('GET', endpoint, headers={'customerId':customer_id, 'apiKey':apikey}) 
         if response.status == 200:
             data = json.loads(response.data.decode('utf-8')) #response.json()
             print(data)
-            return data
         else:
             print(response.status)
             break
